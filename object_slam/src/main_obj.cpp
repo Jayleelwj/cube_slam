@@ -57,12 +57,17 @@ cv::Mat_<float> matx_to3d_, maty_to3d_;
 // for converting depth image to point cloud.
 void set_up_calibration(const Eigen::Matrix3f& calibration_mat,const int im_height,const int im_width)
 {  
+	//create im_height x im_width matrix
     matx_to3d_.create(im_height, im_width);
     maty_to3d_.create(im_height, im_width);
+	// fx(0,0)	0(0,1)	cx(0,2)
+	// 0(1,0)	fy(1,1)	cy(1,2)
+	// 0(2,0)	0(2,1)	1(2,2)
     float center_x=calibration_mat(0,2);  //cx
     float center_y=calibration_mat(1,2);  //cy
     float fx_inv=1.0/calibration_mat(0,0);  // 1/fx
     float fy_inv=1.0/calibration_mat(1,1);  // 1/fy
+	// each element in matx_to3d_, maty_to3d_ need to be set
     for (int v = 0; v < im_height; v++) {
 	for (int u = 0; u < im_width; u++) {
 	  matx_to3d_(v,u) = (u - center_x) * fx_inv;
@@ -78,25 +83,28 @@ void depth_to_cloud(const cv::Mat& rgb_img, const cv::Mat& depth_img,const Eigen
     pcl::ApproximateVoxelGrid<pcl::PointXYZRGB> vox_grid_;
     float close_depth_thre = 0.1;
     float far_depth_thre = 3.0;
-      far_depth_thre = 3;
+      //far_depth_thre = 3;
+	//im_width-->column, im_height-->rows
     int im_width = rgb_img.cols; int im_height= rgb_img.rows;
-    for (int32_t i=0; i<im_width*im_height; i++) {      // row by row
-	int ux=i % im_width; int uy=i / im_width;       
-	float pix_depth= depth_img.at<float>(uy,ux);
-	if (pix_depth>close_depth_thre && pix_depth<far_depth_thre){
-	      pt.z=pix_depth; pt.x=matx_to3d_(uy,ux)*pix_depth; pt.y=maty_to3d_(uy,ux)*pix_depth;
-	      Eigen::VectorXf global_pt=homo_to_real_coord_vec<float>(transToWorld*Eigen::Vector4f(pt.x,pt.y,pt.z,1));  // change to global position
-	      pt.x=global_pt(0); pt.y=global_pt(1); pt.z=global_pt(2);
-	      pt.r = rgb_img.at<cv::Vec3b>(uy,ux)[2]; pt.g = rgb_img.at<cv::Vec3b>(uy,ux)[1]; pt.b = rgb_img.at<cv::Vec3b>(uy,ux)[0];
-	      point_cloud->points.push_back(pt);
-	}
+    for (int32_t i=0; i<im_width*im_height; i++) 
+	{      // row by row
+		int ux=i % im_width; int uy=i / im_width;       
+		float pix_depth= depth_img.at<float>(uy,ux);
+		if (pix_depth>close_depth_thre && pix_depth<far_depth_thre)
+		{
+	    	pt.z=pix_depth; pt.x=matx_to3d_(uy,ux)*pix_depth; pt.y=maty_to3d_(uy,ux)*pix_depth;
+	     	Eigen::VectorXf global_pt=homo_to_real_coord_vec<float>(transToWorld*Eigen::Vector4f(pt.x,pt.y,pt.z,1));  // change to global position
+	     	pt.x=global_pt(0); pt.y=global_pt(1); pt.z=global_pt(2);
+	     	pt.r = rgb_img.at<cv::Vec3b>(uy,ux)[2]; pt.g = rgb_img.at<cv::Vec3b>(uy,ux)[1]; pt.b = rgb_img.at<cv::Vec3b>(uy,ux)[0];
+	     	point_cloud->points.push_back(pt);
+		}
     }    
     if (downsample)
     {
-	vox_grid_.setLeafSize(0.02,0.02,0.02);
-	vox_grid_.setDownsampleAllData(true);
-	vox_grid_.setInputCloud(point_cloud);
-	vox_grid_.filter(*point_cloud);
+		vox_grid_.setLeafSize(0.02,0.02,0.02);
+		vox_grid_.setDownsampleAllData(true);
+		vox_grid_.setInputCloud(point_cloud);
+		vox_grid_.filter(*point_cloud);
     }
 }
 
