@@ -89,10 +89,11 @@ void depth_to_cloud(const cv::Mat& rgb_img, const cv::Mat& depth_img,const Eigen
     for (int32_t i=0; i<im_width*im_height; i++) 
 	{      // row by row
 		int ux=i % im_width; int uy=i / im_width;       
-		float pix_depth= depth_img.at<float>(uy,ux);
-		if (pix_depth>close_depth_thre && pix_depth<far_depth_thre)
+		float pix_depth= depth_img.at<float>(uy,ux);// pix_depth位于depth_img(uy,ux)中
+		if (pix_depth>close_depth_thre && pix_depth<far_depth_thre)//close_depth_thre=0.1, far_depth_thre=3.0
 		{
-	    	pt.z=pix_depth; pt.x=matx_to3d_(uy,ux)*pix_depth; pt.y=maty_to3d_(uy,ux)*pix_depth;
+	    	pt.z=pix_depth;//当pix_depth在[0.1,3.0]区间内时，pt.z=pix_depth
+			pt.x=matx_to3d_(uy,ux)*pix_depth; pt.y=maty_to3d_(uy,ux)*pix_depth;
 	     	Eigen::VectorXf global_pt=homo_to_real_coord_vec<float>(transToWorld*Eigen::Vector4f(pt.x,pt.y,pt.z,1));  // change to global position
 	     	pt.x=global_pt(0); pt.y=global_pt(1); pt.z=global_pt(2);
 	     	pt.r = rgb_img.at<cv::Vec3b>(uy,ux)[2]; pt.g = rgb_img.at<cv::Vec3b>(uy,ux)[1]; pt.b = rgb_img.at<cv::Vec3b>(uy,ux)[0];
@@ -338,7 +339,7 @@ void publish_all_poses(std::vector<tracking_frame*> all_frames,std::vector<objec
 	}
 	
 	if (frame_number==int(all_pred_pose_odoms.size()))
-	{
+	{ 
 	    cout<<"Finish all visulialization!"<<endl;
 	}
 	
