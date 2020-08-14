@@ -16,13 +16,13 @@ Matrix4d similarityTransformation(const cuboid &cube_obj)
     Matrix3d rot;
     rot << cos(cube_obj.rotY), -sin(cube_obj.rotY), 0,
         sin(cube_obj.rotY), cos(cube_obj.rotY), 0,
-        0, 0, 1;
+        0, 0, 1;//旋转矩阵
     Matrix3d scale_mat = cube_obj.scale.asDiagonal();
 
     Matrix4d res = Matrix4d::Identity();
     res.topLeftCorner<3, 3>() = rot * scale_mat;
     res.col(3).head(3) = cube_obj.pos;
-    return res;
+    return res;//生成4*4 transformation matrix
 }
 
 void cuboid::print_cuboid()
@@ -33,9 +33,9 @@ void cuboid::print_cuboid()
     std::cout << "rotY   " << rotY << std::endl;
     std::cout << "box_config_type   " << box_config_type.transpose() << std::endl;
     std::cout << "box_corners_2d \n"
-              << box_corners_2d << std::endl;
+              << box_corners_2d << std::endl;//Eigen::Matrix2Xi box_corners_2d 2*8
     std::cout << "box_corners_3d_world \n"
-              << box_corners_3d_world << std::endl;
+              << box_corners_3d_world << std::endl;// Eigen::Matrix3Xd box_corners_3d_world 3*8
 }
 
 Matrix3Xd compute3D_BoxCorner(const cuboid &cube_obj)
@@ -44,13 +44,18 @@ Matrix3Xd compute3D_BoxCorner(const cuboid &cube_obj)
     corners_body.resize(3, 8);
     corners_body << 1, 1, -1, -1, 1, 1, -1, -1,
         1, -1, -1, 1, 1, -1, -1, 1,
-        -1, -1, -1, -1, 1, 1, 1, 1;
+        -1, -1, -1, -1, 1, 1, 1, 1;//中心点位于原点(0,0,0), 边长为3的正方体
+    // similarityTransformation()-->将cube_obj 中rotY变成矩阵,返回4*4的transformation matrix
+    // real_to_homo_coord()-->将corners_body矩阵3*8生成4*8矩阵
+    // similarityTransformation()*real_to_homo_coor() 即(4,4)*(4,8) 生成4*8矩阵
+    // homo_to_real_coord() 生成3*8矩阵
     MatrixXd corners_world = homo_to_real_coord<double>(similarityTransformation(cube_obj) * real_to_homo_coord<double>(corners_body));
-    return corners_world;
+    return corners_world;//corners_world-->3*8 matrix
 }
 
 // Output: n*2  each row is a edge's start and end pt id.
 // box_config_type  [configuration_id, vp_1_on_left_or_right]      cuboid struct has this field.
+// I DON'T UNDERSTAND WHAT THE FUNCTION MEAN
 void get_object_edge_visibility(MatrixXi &visible_hidden_edge_pts, const Vector2d &box_config_type, bool final_universal_object)
 {
     visible_hidden_edge_pts.resize(12, 2);
@@ -114,6 +119,7 @@ void plot_image_with_cuboid_edges(cv::Mat &plot_img, const MatrixXi &box_corners
     line_markers << 0, 0, 255, 2, 0, 0, 255, 1, 0, 255, 0, 2, 0, 255, 0, 1, 255, 0, 0, 2, 255, 0, 0, 1;
 
     for (int edge_id = 0; edge_id < edge_markers.rows(); edge_id++)
+    //总共12条边
     {
         VectorXi edge_conds = edge_markers.row(edge_id);
         cv::line(plot_img, cv::Point(box_corners_2d(0, edge_conds(0)), box_corners_2d(1, edge_conds(0))),
@@ -135,6 +141,13 @@ void plot_image_with_edges(const cv::Mat &rgb_img, cv::Mat &output_img, MatrixXd
 {
     output_img = rgb_img.clone();
     for (int i = 0; i < all_lines.rows(); i++)
+        //cv::line(img,pt1,pt2,color,line_type,shift) 
+        //参数1: 要划的线所在的图像 the image need to be lined
+        //参数2: 直线起点 cv::Point(all_lines(i,0),all_lines(i,1))
+        //参数3: 直线终点 cv::Point(all_lines(i,2),all_lines(i,3))
+        //参数4: 直线的颜色 cv::Scalar(255,0,0)
+        //参数5: 线的类型
+        //参数6: 坐标点的小数点位数
         cv::line(output_img, cv::Point(all_lines(i, 0), all_lines(i, 1)), cv::Point(all_lines(i, 2), all_lines(i, 3)), cv::Scalar(255, 0, 0), 2, 8, 0);
 }
 

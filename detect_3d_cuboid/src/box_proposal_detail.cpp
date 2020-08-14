@@ -39,37 +39,47 @@ void detect_3d_cuboid::set_calibration(const Matrix3d &Kalib)
 	cam_pose.invK = Kalib.inverse();
 }
 
+//输入:变换矩阵T
+// 输出: cam_pose的各项参数
+//transToWorld---相机变换矩阵
+// rotationToWorld --- 相机旋转矩阵
+// euler_angles --- 相机欧拉角
+// invR --- 旋转矩阵逆
+// projectionMatrix --- K*inv(T)(0:3)
+// KinvR --- K*inv(R)
 void detect_3d_cuboid::set_cam_pose(const Matrix4d &transToWolrd)
 {
 	cam_pose.transToWolrd = transToWolrd;
 	cam_pose.rotationToWorld = transToWolrd.topLeftCorner<3, 3>();
-	Vector3d euler_angles;
-	quat_to_euler_zyx(Quaterniond(cam_pose.rotationToWorld), euler_angles(0), euler_angles(1), euler_angles(2));
-	cam_pose.euler_angle = euler_angles;
-	cam_pose.invR = cam_pose.rotationToWorld.inverse();
+	Vector3d euler_angles;//euler_angles: 3*1, euler_angles(0), euler_anlges(1),euler_angles(2)
+	quat_to_euler_zyx(Quaterniond(cam_pose.rotationToWorld), euler_angles(0), euler_angles(1), euler_angles(2));//实现了将四元数转为欧拉角
+	// cam_pose属于cam_pose_infos类,其中类cam_pose_infos包含cam的基本信息
+	cam_pose.euler_angle = euler_angles;// cam_pose.euler_angle是Eigen::Vector3d
+	cam_pose.invR = cam_pose.rotationToWorld.inverse();//cam_pose.invR是旋转矩阵的逆
 	cam_pose.projectionMatrix = cam_pose.Kalib * transToWolrd.inverse().topRows<3>(); // project world coordinate to camera
-	cam_pose.KinvR = cam_pose.Kalib * cam_pose.invR;
-	cam_pose.camera_yaw = cam_pose.euler_angle(2);
+	cam_pose.KinvR = cam_pose.Kalib * cam_pose.invR;// K*inv(R)
+	cam_pose.camera_yaw = cam_pose.euler_angle(2);// 设定cam_yaw=euler_angle(2)
 	//TODO relative measure? not good... then need to change transToWolrd.
 }
 
 void detect_3d_cuboid::detect_cuboid(const cv::Mat &rgb_img, const Matrix4d &transToWolrd, const MatrixXd &obj_bbox_coors,
 									 MatrixXd all_lines_raw, std::vector<ObjectSet> &all_object_cuboids)
 {
-	set_cam_pose(transToWolrd);
-	cam_pose_raw = cam_pose;
+	set_cam_pose(transToWolrd);//设定各种参数
+	cam_pose_raw = cam_pose;//设定cam_pose_raw为cam_pose
 
 	cv::Mat gray_img;
+	//图片应为灰度图
 	if (rgb_img.channels() == 3)
 		cv::cvtColor(rgb_img, gray_img, CV_BGR2GRAY);
 	else
 		gray_img = rgb_img;
-
+	// 图像的宽和高来自于rgb_img的列数和rgb_img的行数
 	int img_width = rgb_img.cols;
 	int img_height = rgb_img.rows;
 
-	int num_2d_objs = obj_bbox_coors.rows();
-	all_object_cuboids.resize(num_2d_objs);
+	int num_2d_objs = obj_bbox_coors.rows();//num_2d_obj表示obj_bbox_coors的高
+	all_object_cuboids.resize(num_2d_objs);//all_object_cuboids大小为obj_bbox_coors.rows()
 
 	vector<bool> all_configs;
 	all_configs.push_back(consider_config_1);
